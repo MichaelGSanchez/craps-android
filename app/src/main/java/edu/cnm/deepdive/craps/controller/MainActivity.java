@@ -9,8 +9,10 @@ import android.widget.ListView;
 import android.widget.TextView;
 import edu.cnm.deepdive.craps.R;
 import edu.cnm.deepdive.craps.model.Game;
+import edu.cnm.deepdive.craps.model.State;
 import edu.cnm.deepdive.craps.view.ImageRollAdapter;
 import edu.cnm.deepdive.craps.view.SimpleRollAdapter;
+import java.util.List;
 import java.util.Random;
 import org.apache.commons.rng.simple.JDKRandomBridge;
 import org.apache.commons.rng.simple.RandomSource;
@@ -29,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
   private ListView rolls;
   private boolean running;
   private Random rng;
-  private Game  game;
+  private Game game;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -70,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
   @Override
   public boolean onOptionsItemSelected(MenuItem item) {
     boolean handled = true;
-    switch (item.getItemId()){
+    switch (item.getItemId()) {
       case R.id.play_one:
         playOne();
         break;
@@ -83,49 +85,91 @@ public class MainActivity extends AppCompatActivity {
       case R.id.reset:
         reset();
         break;
-        default:
-          handled = super.onOptionsItemSelected(item);
+      default:
+        handled = super.onOptionsItemSelected(item);
     }
     return handled;
   }
 
-  private void playOne(){
+  private void playOne() {
     game.reset();
     game.play();
-    updateRollsDisplay();
-    updateTallyDisplay();
+    updateRollsDisplay(game.getRolls(),game.getState());
+    updateTallyDisplay(game.getWins(),game.getLosses());
   }
 
-  private void playFast(){
+  private void playFast() {
     running = true;
     invalidateOptionsMenu();
-  }//TODO Implement code for running games on separate thread
+    new Runner().start();
+  }
 
   private void pause() {
     running = false;
-    invalidateOptionsMenu();
-    //TODO Implement code for killing separate thread
-  }
-
-  private void reset(){
-    game = new Game (rng);
-    updateTallyDisplay();
-
 
   }
 
-  private void updateRollsDisplay() {
+  private void reset() {
+    game = new Game(rng);
+    updateTallyDisplay(0, 0);
+
+
+  }
+
+  private void updateRollsDisplay(List<int[]> rolls, State state) {
     adapter.clear();
-    ((ImageRollAdapter) adapter).setState(game.getState());
+    ((ImageRollAdapter) adapter).setState(state);
     adapter.addAll(game.getRolls());
   }
 
-  private void updateTallyDisplay(){
-    long wins = game.getWins();
-    long plays = wins + game.getLosses();
+  private void updateTallyDisplay(long wins, long losses) {
+    long plays = wins + losses;
     double percentage = (plays > 0) ? 100.0 * wins / plays : 0;
     String tallString = getString(R.string.tally, wins, plays, percentage);
     tally.setText(tallString);
+  }
+
+  private class Runner extends Thread{
+    private long  wins;
+    private long losses;
+    private int updateCycles;
+    private List<int[]> rolls;
+    private edu.cnm.deepdive.craps.model.State state;
+
+    @Override
+    public void run() {
+
+      while (running){
+
+        for (int i = 0; i < 5000; i++){
+          game.reset();
+          game.play();
+        }
+        updateCycles++;
+          wins = game.getWins();
+          losses = game.getLosses();
+          rolls = game.getRolls();
+          state = game.getState();
+        if (updateCycles % 20 == 0) {
+          rolls = game.getRolls();
+          state = game.getState();
+        } else {
+          rolls = null;
+          state = null;
+        }
+        runOnUiThread(new Runnable() {
+          @Override
+          public void run() {
+            updateTallyDisplay(wins, losses);
+            if (state != null) {
+              updateRollsDisplay(rolls, state);
+            }
+          }
+        });
+      }
+      invalidateOptionsMenu();
+    }
+
   }
 
 }
