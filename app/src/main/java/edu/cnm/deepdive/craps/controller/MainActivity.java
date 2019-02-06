@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
   private void updateRollsDisplay(List<int[]> rolls, State state) {
     adapter.clear();
     ((ImageRollAdapter) adapter).setState(state);
-    adapter.addAll(game.getRolls());
+    adapter.addAll(rolls);
   }
 
   private void updateTallyDisplay(long wins, long losses) {
